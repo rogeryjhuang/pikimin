@@ -1,0 +1,1498 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>等待下一蘑菇戰</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f2;
+      --panel: #ffffff;
+      --ink: #20241f;
+      --muted: #6a7168;
+      --line: #dfe5d8;
+      --green: #2f7d46;
+      --green-dark: #1f5f33;
+      --amber: #c67a16;
+      --red: #b54333;
+      --shadow: 0 12px 32px rgba(31, 45, 27, 0.1);
+      --radius: 8px;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(246, 247, 242, 0.94)),
+        var(--bg);
+      color: var(--ink);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Layout ── */
+    main {
+      width: calc(100% - 24px);
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 20px 0 40px;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.55rem;
+      line-height: 1.15;
+    }
+
+    .clock {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.72);
+      border-radius: var(--radius);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.92rem;
+      color: var(--muted);
+      align-self: stretch;
+      text-align: center;
+    }
+
+    /* ── Toolbars ── */
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 14px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .screenshot-toolbar { margin-top: -6px; }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid #cbd5c3;
+      border-radius: var(--radius);
+      padding: 0 12px;
+      color: var(--ink);
+      background: #fff;
+      font: inherit;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(47, 125, 70, 0.14);
+    }
+
+    button {
+      height: 44px;
+      border: 0;
+      border-radius: var(--radius);
+      padding: 0 20px;
+      background: var(--green);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button:hover { background: var(--green-dark); }
+    button:active { transform: translateY(1px); }
+
+    button.secondary {
+      background: #eef4e9;
+      color: var(--green-dark);
+      border: 1px solid #c9dcc2;
+      box-shadow: none;
+    }
+    button.secondary:hover { background: #dfead8; }
+
+    button.danger {
+      background: #f7ece9;
+      color: var(--red);
+      border-color: #e9c4bd;
+    }
+    button.danger:hover { background: #efd8d2; }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.65;
+      box-shadow: none;
+    }
+
+    .error, .status {
+      grid-column: 1 / -1;
+      min-height: 20px;
+      font-size: 0.88rem;
+    }
+    .error            { color: var(--red); }
+    .status           { color: var(--muted); }
+    .status.error-text { color: var(--red); }
+
+    /* ── Sections & table ── */
+    section { margin-top: 20px; }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    h2 { margin: 0; font-size: 1.05rem; }
+    .count { color: var(--muted); font-size: 0.88rem; }
+
+    .table { display: grid; gap: 8px; }
+
+    /* Table head: hidden on mobile, visible on desktop */
+    .table-head {
+      display: none;
+    }
+
+    /* Card rows (mobile default) */
+    .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      min-height: 60px;
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 14px rgba(31, 45, 27, 0.06);
+    }
+
+    .row.expired {
+      background: #fffaf2;
+      border-color: #ecd6b7;
+    }
+
+    /* Cell: label-value pair on mobile */
+    .cell {
+      display: grid;
+      grid-template-columns: 100px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+
+    .cell::before {
+      content: attr(data-label);
+      color: var(--muted);
+      font-size: 0.82rem;
+      flex-shrink: 0;
+    }
+
+    .time {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .remaining {
+      color: var(--green-dark);
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+    .remaining.warning { color: var(--amber); }
+    .remaining.done    { color: var(--red); }
+
+    .location-cell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+    }
+
+    .saved-mark {
+      min-height: 16px;
+      color: var(--green-dark);
+      font-size: 0.78rem;
+    }
+
+    .location-text {
+      min-height: 24px;
+      display: flex;
+      align-items: center;
+    }
+    .location-text.empty-location { color: var(--muted); }
+
+    .actions-cell {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    button.secondary { width: 100%; }
+
+    .empty {
+      min-height: 80px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed #cfd9c7;
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-size: 0.92rem;
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    /* ── Tablet (640px+) ── */
+    @media (min-width: 640px) {
+      main { padding: 24px 0 44px; width: calc(100% - 40px); }
+
+      header {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+      }
+
+      .clock {
+        align-self: auto;
+        min-width: 110px;
+        font-size: 0.95rem;
+      }
+
+      .toolbar {
+        grid-template-columns: minmax(160px, 200px) auto;
+        padding: 16px;
+      }
+
+      .screenshot-toolbar {
+        grid-template-columns: minmax(200px, 1fr) auto;
+      }
+
+      /* Wider cells */
+      .cell {
+        grid-template-columns: 110px minmax(0, 1fr);
+      }
+
+      .actions-cell {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      button.secondary { width: auto; min-width: 64px; }
+
+      h1 { font-size: 1.8rem; }
+      h2 { font-size: 1.1rem; }
+    }
+
+    /* ── Desktop (1024px+) ── */
+    @media (min-width: 1024px) {
+      main { padding: 32px 0 48px; }
+
+      h1 { font-size: clamp(2rem, 3vw, 2.65rem); }
+
+      .toolbar {
+        grid-template-columns: minmax(180px, 240px) auto;
+      }
+
+      .screenshot-toolbar {
+        grid-template-columns: minmax(240px, 1fr) auto;
+      }
+
+      /* Show table header */
+      .table-head {
+        display: grid;
+        grid-template-columns: 112px 110px 138px minmax(180px, 1fr) 142px;
+        gap: 10px;
+        align-items: center;
+        padding: 0 12px;
+        color: var(--muted);
+        font-size: 0.83rem;
+      }
+
+      .table-head.expired {
+        grid-template-columns: 112px 110px 138px minmax(180px, 1fr);
+      }
+
+      /* Row as proper grid, no card labels */
+      .row {
+        grid-template-columns: 112px 110px 138px minmax(180px, 1fr) 142px;
+        gap: 10px;
+        padding: 12px;
+        min-height: 68px;
+      }
+
+      .row.expired {
+        grid-template-columns: 112px 110px 138px minmax(180px, 1fr);
+      }
+
+      .cell {
+        display: block;
+      }
+
+      .cell::before { display: none; }
+
+      .location-cell.saved {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+    }
+  </style>
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>等待下一蘑菇戰</h1>
+      <div class="clock" id="nowClock">--:--:--</div>
+    </header>
+
+    <form class="toolbar" id="addForm" autocomplete="off">
+      <label>
+        剩餘時間
+        <input id="durationInput" inputmode="numeric" pattern="[0-9]{1,3}:[0-5][0-9]" placeholder="mm:ss" aria-describedby="formError">
+      </label>
+      <button type="submit">新增</button>
+      <p class="error" id="formError" aria-live="polite"></p>
+    </form>
+
+    <form class="toolbar screenshot-toolbar" id="screenshotForm" autocomplete="off">
+      <label>
+        遊戲截圖
+        <input id="screenshotInput" type="file" accept="image/*" aria-describedby="screenshotStatus">
+      </label>
+      <button id="screenshotButton" type="submit">從截圖新增</button>
+      <p class="status" id="screenshotStatus" aria-live="polite"></p>
+    </form>
+
+    <section aria-labelledby="activeTitle">
+      <div class="section-head">
+        <h2 id="activeTitle">倒數中</h2>
+        <span class="count" id="activeCount">0 筆</span>
+      </div>
+      <div class="table" id="activeTable"></div>
+    </section>
+
+    <section aria-labelledby="expiredTitle">
+      <div class="section-head">
+        <h2 id="expiredTitle">已過時間</h2>
+        <span class="count" id="expiredCount">0 筆</span>
+      </div>
+      <div class="table" id="expiredTable"></div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "pikimin-mushroom-countdowns-v1";
+      const WARNING_SOUND_SRC = "sound/fight_mogu_30s.mp3";
+      const FIVE_MINUTES = 5 * 60 * 1000;
+      const THIRTY_SECONDS = 30 * 1000;
+      const TICK_MS = 250;
+      const TESSERACT_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+      const SCREENSHOT_REGIONS = {
+        location: [
+          { x: 0.25, y: 0.06, width: 0.50, height: 0.12, mode: "dt100" },
+          { x: 0.30, y: 0.07, width: 0.40, height: 0.09, mode: "dt120" },
+          { x: 0.34, y: 0.085, width: 0.32, height: 0.055, mode: "dt140" },
+          { x: 0.25, y: 0.06, width: 0.50, height: 0.12, mode: "dt160" },
+          { x: 0.30, y: 0.07, width: 0.40, height: 0.09, mode: "brightText" },
+          { x: 0.25, y: 0.05, width: 0.50, height: 0.14, mode: "raw" }
+        ],
+        remaining: [
+          { x: 0.025, y: 0.445, width: 0.44, height: 0.065, mode: "dt100" },
+          { x: 0.025, y: 0.445, width: 0.44, height: 0.065, mode: "dt120" },
+          { x: 0.02, y: 0.45, width: 0.46, height: 0.058, mode: "dt140" },
+          { x: 0.025, y: 0.445, width: 0.44, height: 0.065, mode: "dt160" },
+          { x: 0.03, y: 0.49, width: 0.40, height: 0.08, mode: "dt100" },
+          { x: 0.03, y: 0.52, width: 0.40, height: 0.08, mode: "dt100" },
+          { x: 0.02, y: 0.44, width: 0.48, height: 0.12, mode: "raw" }
+        ]
+      };
+
+      const form = document.querySelector("#addForm");
+      const durationInput = document.querySelector("#durationInput");
+      const errorBox = document.querySelector("#formError");
+      const screenshotForm = document.querySelector("#screenshotForm");
+      const screenshotInput = document.querySelector("#screenshotInput");
+      const screenshotButton = document.querySelector("#screenshotButton");
+      const screenshotStatus = document.querySelector("#screenshotStatus");
+      const activeTable = document.querySelector("#activeTable");
+      const expiredTable = document.querySelector("#expiredTable");
+      const activeCount = document.querySelector("#activeCount");
+      const expiredCount = document.querySelector("#expiredCount");
+      const nowClock = document.querySelector("#nowClock");
+
+      let events = loadEvents();
+      let audioContext = null;
+      let audioResumePromise = null;
+      let lastAudioResumeAttempt = 0;
+      let warningAudio = null;
+      let warningAudioPrimed = false;
+      let warningAudioBuffer = null;
+      let warningAudioBufferPromise = null;
+      let warningAudioBufferUnavailable = false;
+      const scheduledWarningAlerts = new Map();
+      const pendingWarningPlays = new Set();
+      const draftLocations = new Map();
+      let tesseractLoader = null;
+      let lastRenderedSignature = "";
+
+      function pad(value) {
+        return String(value).padStart(2, "0");
+      }
+
+      function formatClock(timestamp) {
+        const date = new Date(timestamp);
+        return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      }
+
+      function formatRemaining(ms) {
+        const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+      }
+
+      function parseDuration(value) {
+        const match = value.trim().match(/^(\d{1,3}):([0-5]\d)$/);
+        if (!match) return null;
+
+        const minutes = Number(match[1]);
+        const seconds = Number(match[2]);
+        const totalSeconds = minutes * 60 + seconds;
+        return totalSeconds > 0 ? totalSeconds : null;
+      }
+
+      function createId() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+
+      function loadEvents() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function saveEvents() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      }
+
+      function addCountdownEvent({ createdAt, durationSeconds, location = "" }) {
+        const totalDurationMs = durationSeconds * 1000 + FIVE_MINUTES;
+        const endsAt = createdAt + totalDurationMs;
+        const remainingMs = endsAt - Date.now();
+        const isExpired = remainingMs <= 0;
+
+        events.push({
+          id: createId(),
+          createdAt,
+          durationSeconds,
+          endsAt,
+          nextBattleAt: endsAt,
+          location,
+          savedAt: location ? createdAt : null,
+          status: isExpired ? "expired" : "active",
+          endedAt: isExpired ? endsAt : null,
+          notified: isExpired,
+          warningNotified: isExpired || remainingMs <= THIRTY_SECONDS
+        });
+
+        saveEvents();
+        render({ force: true });
+      }
+
+      function compareNextBattle(a, b) {
+        const aTime = a.nextBattleAt || a.endsAt;
+        const bTime = b.nextBattleAt || b.endsAt;
+        return aTime - bTime || a.createdAt - b.createdAt;
+      }
+
+      function compareNextBattleDesc(a, b) {
+        return compareNextBattle(b, a);
+      }
+
+      function normalizeEvents({ silent = false } = {}) {
+        const now = Date.now();
+        let changed = false;
+
+        events = events.map((event) => {
+          if (event.status === "active" && event.endsAt <= now) {
+            changed = true;
+            if (!silent && !event.notified) playAlert();
+            return {
+              ...event,
+              status: "expired",
+              endedAt: event.endsAt,
+              notified: true
+            };
+          }
+          return event;
+        });
+
+        const expired = events
+          .filter((event) => event.status === "expired")
+          .sort(compareNextBattleDesc)
+          .slice(0, 3)
+          .sort(compareNextBattle);
+        const active = events
+          .filter((event) => event.status === "active")
+          .sort(compareNextBattle);
+
+        const nextEvents = [...active, ...expired];
+        if (nextEvents.length !== events.length || nextEvents.some((event, index) => event !== events[index])) {
+          changed = true;
+        }
+        events = nextEvents;
+
+        if (changed) saveEvents();
+      }
+
+      function notifyThirtySecondWarnings({ silent = false } = {}) {
+        const now = Date.now();
+        const warningIds = events.flatMap((event) => {
+          const remainingMs = event.endsAt - now;
+          if (event.status !== "active" || remainingMs <= 0 || remainingMs > THIRTY_SECONDS || event.warningNotified) {
+            return [];
+          }
+
+          return [event.id];
+        });
+
+        warningIds.forEach((eventId) => markWarningNotified(eventId, { silent }));
+      }
+
+      function unlockAudio() {
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtor) return null;
+        if (!audioContext) audioContext = new AudioCtor();
+        if (audioContext.state === "running") return audioContext;
+        if (audioContext.state === "suspended") {
+          const now = Date.now();
+          if (!audioResumePromise && now - lastAudioResumeAttempt > 1000) {
+            lastAudioResumeAttempt = now;
+            audioResumePromise = audioContext.resume()
+              .then(scheduleWarningAlerts)
+              .catch(() => {})
+              .finally(() => {
+                audioResumePromise = null;
+              });
+          }
+        }
+        return audioContext;
+      }
+
+      function playTone(startOffset, options = {}) {
+        if (!audioContext) return;
+
+        const {
+          frequency = 880,
+          duration = 0.18,
+          volume = 0.18,
+          type = "sine"
+        } = options;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const start = audioContext.currentTime + startOffset;
+        const stop = start + duration;
+
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(volume, start + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, stop);
+
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(start);
+        oscillator.stop(stop + 0.02);
+      }
+
+      function playAlert() {
+        unlockAudio();
+        if (!audioContext) return;
+        playTone(0);
+        playTone(0.34);
+        playTone(0.68);
+      }
+
+      function getWarningAudio() {
+        if (!warningAudio) {
+          warningAudio = new Audio(WARNING_SOUND_SRC);
+          warningAudio.preload = "auto";
+        }
+        return warningAudio;
+      }
+
+      function decodeAudioData(context, data) {
+        if (context.decodeAudioData.length === 1) return context.decodeAudioData(data);
+        return new Promise((resolve, reject) => context.decodeAudioData(data, resolve, reject));
+      }
+
+      function loadWarningAudioBuffer() {
+        const context = unlockAudio();
+        if (!context || !window.fetch) return Promise.resolve(null);
+        if (warningAudioBuffer) return Promise.resolve(warningAudioBuffer);
+        if (warningAudioBufferUnavailable) return Promise.resolve(null);
+        if (!warningAudioBufferPromise) {
+          warningAudioBufferPromise = fetch(WARNING_SOUND_SRC)
+            .then((response) => {
+              if (!response.ok) throw new Error("Unable to load warning audio.");
+              return response.arrayBuffer();
+            })
+            .then((data) => decodeAudioData(context, data))
+            .then((buffer) => {
+              warningAudioBuffer = buffer;
+              return buffer;
+            })
+            .catch(() => {
+              warningAudioBufferPromise = null;
+              warningAudioBufferUnavailable = true;
+              return null;
+            });
+        }
+        return warningAudioBufferPromise;
+      }
+
+      function prepareWarningAudio() {
+        getWarningAudio().load();
+        primeWarningAudioElement();
+        loadWarningAudioBuffer();
+      }
+
+      function primeWarningAudioElement() {
+        if (warningAudioPrimed) return;
+        const audio = getWarningAudio();
+        const previousMuted = audio.muted;
+        const previousVolume = audio.volume;
+        const restoreAudio = () => {
+          audio.pause();
+          try {
+            audio.currentTime = 0;
+          } catch {
+            // Some browsers reject currentTime before metadata is ready.
+          }
+          audio.muted = previousMuted;
+          audio.volume = previousVolume;
+        };
+
+        audio.muted = true;
+        audio.volume = 0;
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === "function") {
+          playPromise
+            .then(() => {
+              warningAudioPrimed = true;
+              restoreAudio();
+            })
+            .catch(restoreAudio);
+          return;
+        }
+
+        warningAudioPrimed = true;
+        restoreAudio();
+      }
+
+      function playWarningAlert() {
+        const context = unlockAudio();
+        if (context && warningAudioBuffer) {
+          try {
+            const source = context.createBufferSource();
+            source.buffer = warningAudioBuffer;
+            source.connect(context.destination);
+            source.start();
+            return Promise.resolve(true);
+          } catch {
+            return Promise.resolve(false);
+          }
+        }
+
+        const audio = getWarningAudio();
+        audio.pause();
+        audio.muted = false;
+        audio.volume = 1;
+        try {
+          audio.currentTime = 0;
+        } catch {
+          // Keep playing from the browser-selected position if seeking is unavailable.
+        }
+        const playPromise = audio.play();
+        if (!playPromise || typeof playPromise.then !== "function") return Promise.resolve(true);
+        return playPromise
+          .then(() => true)
+          .catch(() => loadWarningAudioBuffer().then((buffer) => {
+            if (!buffer || !audioContext || audioContext.state !== "running") return false;
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            source.start();
+            return true;
+          }).catch(() => false));
+      }
+
+      function cancelScheduledWarning(eventId, { stopSource = true } = {}) {
+        const scheduled = scheduledWarningAlerts.get(eventId);
+        if (!scheduled) return;
+        clearTimeout(scheduled.timeoutId);
+        if (scheduled.source && stopSource) {
+          try {
+            scheduled.source.stop();
+          } catch {
+            // The source may already have finished.
+          }
+        }
+        scheduledWarningAlerts.delete(eventId);
+      }
+
+      function markWarningNotified(eventId, { silent = false } = {}) {
+        const scheduled = scheduledWarningAlerts.get(eventId);
+        const hasScheduledSource = Boolean(scheduled && scheduled.source);
+        const persistNotification = () => {
+          let changed = false;
+          events = events.map((event) => {
+            if (event.id !== eventId || event.status !== "active" || event.warningNotified) return event;
+            changed = true;
+            return {
+              ...event,
+              warningNotified: true
+            };
+          });
+
+          if (!changed) return false;
+          cancelScheduledWarning(eventId, { stopSource: !hasScheduledSource });
+          saveEvents();
+          return true;
+        };
+
+        if (silent || hasScheduledSource) return persistNotification();
+        if (pendingWarningPlays.has(eventId)) return false;
+
+        pendingWarningPlays.add(eventId);
+        playWarningAlert().then((played) => {
+          pendingWarningPlays.delete(eventId);
+          if (played) persistNotification();
+        });
+        return false;
+      }
+
+      function scheduleWarningBufferSource(eventId, warningAt) {
+        const context = unlockAudio();
+        if (!context || context.state !== "running") return;
+
+        loadWarningAudioBuffer().then((buffer) => {
+          const scheduled = scheduledWarningAlerts.get(eventId);
+          const event = events.find((item) => item.id === eventId);
+          if (!buffer || !scheduled || scheduled.warningAt !== warningAt) return;
+          if (context.state !== "running") return;
+          if (!event || event.status !== "active" || event.warningNotified || event.endsAt - THIRTY_SECONDS !== warningAt) return;
+
+          const source = context.createBufferSource();
+          const startAt = context.currentTime + Math.max(0, (warningAt - Date.now()) / 1000);
+          source.buffer = buffer;
+          source.connect(context.destination);
+          source.onended = () => markWarningNotified(eventId, { silent: true });
+          source.start(startAt);
+          scheduled.source = source;
+        });
+      }
+
+      function scheduleWarningAlerts() {
+        const now = Date.now();
+        const activeWarningIds = new Set();
+
+        events.forEach((event) => {
+          if (event.status !== "active" || event.warningNotified) {
+            cancelScheduledWarning(event.id);
+            return;
+          }
+
+          const warningAt = event.endsAt - THIRTY_SECONDS;
+          const remainingMs = event.endsAt - now;
+          if (remainingMs <= 0) {
+            cancelScheduledWarning(event.id);
+            return;
+          }
+
+          if (remainingMs <= THIRTY_SECONDS) {
+            markWarningNotified(event.id, { silent: false });
+            return;
+          }
+
+          activeWarningIds.add(event.id);
+          const current = scheduledWarningAlerts.get(event.id);
+          if (current && current.warningAt === warningAt) {
+            if (!current.source) scheduleWarningBufferSource(event.id, warningAt);
+            return;
+          }
+
+          cancelScheduledWarning(event.id);
+          const timeoutId = window.setTimeout(() => {
+            markWarningNotified(event.id, { silent: false });
+          }, Math.max(0, warningAt - Date.now()));
+          scheduledWarningAlerts.set(event.id, {
+            warningAt,
+            timeoutId,
+            source: null
+          });
+          scheduleWarningBufferSource(event.id, warningAt);
+        });
+
+        scheduledWarningAlerts.forEach((_, eventId) => {
+          if (!activeWarningIds.has(eventId)) cancelScheduledWarning(eventId);
+        });
+      }
+
+      function cell(label, content, className = "") {
+        const wrapper = document.createElement("div");
+        wrapper.className = `cell ${className}`.trim();
+        wrapper.dataset.label = label;
+        if (typeof content === "string") {
+          wrapper.textContent = content;
+        } else {
+          wrapper.append(content);
+        }
+        return wrapper;
+      }
+
+      function createTableHead(mode) {
+        const head = document.createElement("div");
+        head.className = `table-head ${mode === "expired" ? "expired" : ""}`.trim();
+        head.setAttribute("aria-hidden", "true");
+
+        const labels = ["建立時間", "剩餘時間", "下一蘑菇戰", "蘑菇戰地點"];
+        if (mode === "active") labels.push("操作");
+
+        labels.forEach((label) => {
+          const item = document.createElement("span");
+          item.textContent = label;
+          head.append(item);
+        });
+
+        return head;
+      }
+
+      function renderTable(target, items, emptyText, mode) {
+        target.replaceChildren();
+
+        if (items.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = emptyText;
+          target.append(empty);
+          return;
+        }
+
+        target.append(createTableHead(mode));
+        items.forEach((event) => target.append(renderRow(event)));
+      }
+
+      function renderRow(event) {
+        const row = document.createElement("div");
+        row.className = `row ${event.status === "expired" ? "expired" : ""}`.trim();
+        row.dataset.id = event.id;
+
+        const now = Date.now();
+        const remainingMs = event.status === "active" ? event.endsAt - now : 0;
+        const remainingClass = remainingMs <= 0 ? "done" : remainingMs <= 60_000 ? "warning" : "";
+        const draftLocation = draftLocations.has(event.id) ? draftLocations.get(event.id) : null;
+        const hasUnsavedLocation = draftLocation !== null && draftLocation !== (event.location || "");
+
+        const remaining = document.createElement("strong");
+        remaining.className = `time remaining ${remainingClass}`.trim();
+        remaining.dataset.role = "remaining";
+        remaining.textContent = formatRemaining(remainingMs);
+
+        row.append(
+          cell("建立時間", formatClock(event.createdAt), "time"),
+          cell("剩餘時間", remaining),
+          cell("下一蘑菇戰", formatClock(event.nextBattleAt), "time")
+        );
+
+        if (event.status === "expired") {
+          const locationText = document.createElement("span");
+          locationText.className = `location-text ${event.location ? "" : "empty-location"}`.trim();
+          locationText.textContent = event.location || "";
+          row.append(cell("蘑菇戰地點", locationText));
+          return row;
+        }
+
+        const locationInput = document.createElement("input");
+        locationInput.value = draftLocation ?? event.location ?? "";
+        locationInput.placeholder = "地點";
+        locationInput.dataset.role = "location";
+        locationInput.ariaLabel = "蘑菇戰地點";
+
+        const savedMark = document.createElement("span");
+        savedMark.className = "saved-mark";
+        savedMark.dataset.role = "savedMark";
+        savedMark.textContent = !hasUnsavedLocation && event.savedAt ? `已儲存 ${formatClock(event.savedAt)}` : "";
+
+        const locationWrap = document.createElement("div");
+        locationWrap.className = "location-cell";
+        locationWrap.append(locationInput, savedMark);
+
+        const saveButton = document.createElement("button");
+        saveButton.type = "button";
+        saveButton.className = "secondary";
+        saveButton.dataset.role = "saveLocation";
+        saveButton.textContent = "儲存";
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "secondary danger";
+        deleteButton.dataset.role = "deleteEvent";
+        deleteButton.textContent = "刪除";
+
+        const actions = document.createElement("div");
+        actions.className = "actions-cell";
+        actions.append(saveButton, deleteButton);
+
+        row.append(
+          cell("蘑菇戰地點", locationWrap),
+          cell("操作", actions)
+        );
+
+        return row;
+      }
+
+      function render({ force = false } = {}) {
+        normalizeEvents({ silent: false });
+        notifyThirtySecondWarnings({ silent: false });
+        scheduleWarningAlerts();
+        const now = Date.now();
+        const active = events
+          .filter((event) => event.status === "active")
+          .sort(compareNextBattle);
+        const expired = events
+          .filter((event) => event.status === "expired")
+          .sort(compareNextBattle);
+        const signature = JSON.stringify(events.map((event) => ({
+          id: event.id,
+          status: event.status,
+          location: event.location,
+          savedAt: event.savedAt,
+          createdAt: event.createdAt,
+          nextBattleAt: event.nextBattleAt
+        })));
+
+        nowClock.textContent = formatClock(now);
+        activeCount.textContent = `${active.length} 筆`;
+        expiredCount.textContent = `${expired.length} 筆`;
+
+        if (force || signature !== lastRenderedSignature) {
+          lastRenderedSignature = signature;
+
+          renderTable(activeTable, active, "目前沒有倒數中的事件", "active");
+          renderTable(expiredTable, expired, "目前沒有已過時間的事件", "expired");
+        }
+
+        updateRemainingDisplays();
+      }
+
+      function updateRemainingDisplays() {
+        const now = Date.now();
+
+        document.querySelectorAll(".row").forEach((row) => {
+          const event = events.find((item) => item.id === row.dataset.id);
+          const remaining = row.querySelector("[data-role='remaining']");
+          if (!event || !remaining) return;
+
+          const remainingMs = event.status === "active" ? event.endsAt - now : 0;
+          const remainingClass = remainingMs <= 0 ? "done" : remainingMs <= 60_000 ? "warning" : "";
+          remaining.className = `time remaining ${remainingClass}`.trim();
+          remaining.textContent = formatRemaining(remainingMs);
+        });
+      }
+
+      function setScreenshotStatus(message, isError = false) {
+        screenshotStatus.textContent = message;
+        screenshotStatus.classList.toggle("error-text", isError);
+      }
+
+      function loadImageFromFile(file) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          const url = URL.createObjectURL(file);
+
+          image.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(image);
+          };
+          image.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("無法讀取圖片。"));
+          };
+          image.src = url;
+        });
+      }
+
+      function cropRegionToDataUrl(image, region) {
+        const sourceX = Math.round(image.naturalWidth * region.x);
+        const sourceY = Math.round(image.naturalHeight * region.y);
+        const sourceWidth = Math.round(image.naturalWidth * region.width);
+        const sourceHeight = Math.round(image.naturalHeight * region.height);
+        const scale = region.scale || 5;
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+
+        canvas.width = Math.max(1, sourceWidth * scale);
+        canvas.height = Math.max(1, sourceHeight * scale);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = "high";
+        context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+
+        if (region.mode === "raw") return canvas.toDataURL("image/png");
+
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let index = 0; index < data.length; index += 4) {
+          const red = data[index];
+          const green = data[index + 1];
+          const blue = data[index + 2];
+          const max = Math.max(red, green, blue);
+          const min = Math.min(red, green, blue);
+          const saturation = max === 0 ? 0 : (max - min) / max;
+          const brightness = red * 0.2126 + green * 0.7152 + blue * 0.0722;
+
+          let isWhiteText;
+          const mode = region.mode || "whiteText";
+          if (mode === "brightText") {
+            isWhiteText = brightness > 175;
+          } else if (mode === "whiteText") {
+            isWhiteText = brightness > 155 && saturation < 0.38;
+          } else if (mode.startsWith("dt")) {
+            const threshold = parseInt(mode.slice(2), 10) || 140;
+            const satLimit = threshold <= 120 ? 0.55 : threshold <= 140 ? 0.48 : 0.40;
+            isWhiteText = brightness > threshold && saturation < satLimit;
+          } else {
+            isWhiteText = brightness > 155 && saturation < 0.38;
+          }
+
+          const value = isWhiteText ? 0 : 255;
+          data[index] = value;
+          data[index + 1] = value;
+          data[index + 2] = value;
+          data[index + 3] = 255;
+        }
+        context.putImageData(imageData, 0, 0);
+
+        return canvas.toDataURL("image/png");
+      }
+
+      function loadTesseract() {
+        if (window.Tesseract) return Promise.resolve(window.Tesseract);
+        if (tesseractLoader) return tesseractLoader;
+
+        tesseractLoader = new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = TESSERACT_SCRIPT_URL;
+          script.async = true;
+          script.onload = () => resolve(window.Tesseract);
+          script.onerror = () => reject(new Error("無法載入 OCR 模組。"));
+          document.head.append(script);
+        });
+
+        return tesseractLoader;
+      }
+
+      async function recognizeTextFromDataUrl(dataUrl, options = {}) {
+        const language = options.language || "chi_tra+eng";
+        const pageSegMode = options.pageSegMode || "7";
+
+        if ("TextDetector" in window) {
+          try {
+            const blob = await (await fetch(dataUrl)).blob();
+            const bitmap = await createImageBitmap(blob);
+            const detector = new TextDetector();
+            const detected = await detector.detect(bitmap);
+            return detected.map((item) => item.rawValue || item.text || "").join("\n");
+          } catch {
+            // Fall through to Tesseract when native OCR is unavailable or fails.
+          }
+        }
+
+        const Tesseract = await loadTesseract();
+        const result = await Tesseract.recognize(dataUrl, language, {
+          tessedit_pageseg_mode: pageSegMode,
+          preserve_interword_spaces: "1"
+        });
+        return result.data && result.data.text ? result.data.text : "";
+      }
+
+      function normalizeOcrText(text) {
+        return text
+          .replace(/[０-９]/g, (char) => String(char.charCodeAt(0) - 0xff10))
+          .replace(/[：︰]/g, ":")
+          .replace(/[｜|Il]/g, "1")
+          .replace(/[ＯｏOo]/g, "0")
+          .replace(/[ｚZz]/g, "2")
+          .replace(/[ＳＳsS]/g, "5")
+          .replace(/[ＢＢbB]/g, "8")
+          .replace(/[ａａaA]/g, "4")
+          .replace(/[ㄇ厂]/g, "7")
+          .replace(/[了]/g, "3")
+          .replace(/[６]/g, "6")
+          .replace(/[９]/g, "9")
+          .replace(/[　]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function parseScreenshotRemaining(text) {
+        const normalized = normalizeOcrText(text);
+        const labeled = normalized.match(/(?:剩下|剩餘|剩余|剩)\D*(\d{1,3})\D*(?:小時|小时|時|时|h)?\D*(\d{1,2})\D*(?:分|m)?\D*(\d{1,2})/i);
+        let numbers = labeled
+          ? [labeled[1], labeled[2], labeled[3]].map(Number)
+          : (normalized.match(/\d+/g) || []).slice(-3).map(Number);
+
+        if (numbers.length < 3) {
+          const digits = normalized.replace(/\D/g, "");
+          if (digits.length >= 5 && digits.length <= 7) {
+            numbers = [
+              Number(digits.slice(0, -4)),
+              Number(digits.slice(-4, -2)),
+              Number(digits.slice(-2))
+            ];
+          }
+        }
+
+        if (numbers.length < 3) return null;
+        const [hours, minutes, seconds] = numbers;
+        if (minutes > 59 || seconds > 59) return null;
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+        return totalSeconds > 0 ? totalSeconds : null;
+      }
+
+      function parseScreenshotLocation(text) {
+        const normalized = normalizeOcrText(text);
+        const preservedArrow = /[>＞]\s*$/.test(normalized) ? " >" : "";
+        const cleaned = normalized.replace(/[>＞›》〉]/g, "").trim();
+        const chineseRuns = cleaned.match(/[\u3400-\u9fff]{2,8}/g) || [];
+        const candidates = [
+          ...chineseRuns,
+          ...cleaned
+          .split(/[\n\r。,.，、]/)
+          .map((line) => line.replace(/[^\u3400-\u9fffA-Za-z0-9 ]/g, "").trim())
+        ]
+          .map((line) => line.replace(/\s+/g, ""))
+          .filter((line, index, lines) => line && lines.indexOf(line) === index)
+          .filter((line) => /[\u3400-\u9fff]/.test(line))
+          .filter((line) => !/(剩|小時|小时|工作力|全部|參加|來電|电|電量|上午|下午)/.test(line))
+          .sort((a, b) => {
+            const aChinese = (a.match(/[\u3400-\u9fff]/g) || []).length;
+            const bChinese = (b.match(/[\u3400-\u9fff]/g) || []).length;
+            return bChinese - aChinese || b.length - a.length;
+          });
+
+        const best = candidates[0] || "";
+        return best ? best + preservedArrow : "";
+      }
+
+      async function recognizeRemainingFromImage(image) {
+        const attempts = [];
+
+        for (const region of SCREENSHOT_REGIONS.remaining) {
+          const crop = cropRegionToDataUrl(image, region);
+          const text = await recognizeTextFromDataUrl(crop, {
+            language: "chi_tra+eng",
+            pageSegMode: region.pageSegMode || "7"
+          });
+          const cleaned = normalizeOcrText(text);
+          attempts.push(cleaned);
+          console.debug("[remaining]", region.mode, JSON.stringify(cleaned));
+
+          const durationSeconds = parseScreenshotRemaining(text);
+          if (durationSeconds) {
+            return { durationSeconds, attempts };
+          }
+        }
+
+        const combined = attempts.join(" ");
+        const durationSeconds = parseScreenshotRemaining(combined);
+        return { durationSeconds, attempts };
+      }
+
+      async function recognizeLocationFromImage(image) {
+        const attempts = [];
+
+        for (const region of SCREENSHOT_REGIONS.location) {
+          const crop = cropRegionToDataUrl(image, region);
+          const text = await recognizeTextFromDataUrl(crop, {
+            language: "chi_tra",
+            pageSegMode: region.pageSegMode || "7"
+          });
+          const cleaned = normalizeOcrText(text);
+          attempts.push(cleaned);
+          console.debug("[location]", region.mode, JSON.stringify(cleaned));
+
+          const location = parseScreenshotLocation(text);
+          if (location) {
+            return { location, attempts };
+          }
+        }
+
+        return {
+          location: parseScreenshotLocation(attempts.join(" ")),
+          attempts
+        };
+      }
+
+      function readAscii(view, offset, length) {
+        let text = "";
+        for (let index = 0; index < length && offset + index < view.byteLength; index += 1) {
+          text += String.fromCharCode(view.getUint8(offset + index));
+        }
+        return text;
+      }
+
+      function parseExifDate(text) {
+        const match = text.match(/^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+        if (!match) return null;
+        const [, year, month, day, hour, minute, second] = match.map(Number);
+        const date = new Date(year, month - 1, day, hour, minute, second);
+        return Number.isNaN(date.getTime()) ? null : date.getTime();
+      }
+
+      function readTiffDates(view, tiffStart) {
+        const endian = readAscii(view, tiffStart, 2);
+        const littleEndian = endian === "II";
+        if (!littleEndian && endian !== "MM") return [];
+
+        const getUint16 = (offset) => view.getUint16(tiffStart + offset, littleEndian);
+        const getUint32 = (offset) => view.getUint32(tiffStart + offset, littleEndian);
+        const dates = [];
+
+        const readIfd = (offset) => {
+          if (!offset || tiffStart + offset + 2 > view.byteLength) return null;
+          const count = getUint16(offset);
+          const tags = {};
+
+          for (let index = 0; index < count; index += 1) {
+            const entry = offset + 2 + index * 12;
+            if (tiffStart + entry + 12 > view.byteLength) break;
+            const tag = getUint16(entry);
+            const type = getUint16(entry + 2);
+            const valueCount = getUint32(entry + 4);
+            const valueOrOffset = getUint32(entry + 8);
+
+            if (type === 2) {
+              const textOffset = valueCount <= 4 ? tiffStart + entry + 8 : tiffStart + valueOrOffset;
+              const text = readAscii(view, textOffset, valueCount).replace(/\0/g, "").trim();
+              tags[tag] = { text };
+              if (tag === 0x0132 || tag === 0x9003 || tag === 0x9004) dates.push(text);
+            } else {
+              tags[tag] = { value: valueOrOffset };
+            }
+          }
+
+          return tags;
+        };
+
+        const firstIfdOffset = getUint32(4);
+        const firstIfd = readIfd(firstIfdOffset);
+        if (firstIfd && firstIfd[0x8769]) readIfd(firstIfd[0x8769].value);
+
+        return dates;
+      }
+
+      async function readImageCreatedAt(file) {
+        if (/jpe?g/i.test(file.type)) {
+          try {
+            const buffer = await file.arrayBuffer();
+            const view = new DataView(buffer);
+            if (view.getUint16(0, false) === 0xffd8) {
+              let offset = 2;
+              while (offset + 4 < view.byteLength) {
+                if (view.getUint8(offset) !== 0xff) break;
+                const marker = view.getUint8(offset + 1);
+                const length = view.getUint16(offset + 2, false);
+                if (marker === 0xe1 && readAscii(view, offset + 4, 6) === "Exif\0\0") {
+                  const dates = readTiffDates(view, offset + 10);
+                  const parsed = dates.map(parseExifDate).find(Boolean);
+                  if (parsed) return parsed;
+                }
+                offset += length + 2;
+              }
+            }
+          } catch {
+            // Fall back to the file timestamp exposed by the browser.
+          }
+        }
+
+        return file.lastModified || Date.now();
+      }
+
+      async function addEventFromScreenshot(file) {
+        const image = await loadImageFromFile(file);
+        const createdAt = await readImageCreatedAt(file);
+        const remainingResult = await recognizeRemainingFromImage(image);
+        const locationResult = await recognizeLocationFromImage(image);
+        const durationSeconds = remainingResult.durationSeconds;
+        const location = locationResult.location;
+
+        if (!durationSeconds) {
+          const sample = remainingResult.attempts.map(normalizeOcrText).filter(Boolean).join(" / ");
+          throw new Error(sample ? `無法辨識剩餘時間。OCR：${sample}` : "無法辨識剩餘時間。");
+        }
+
+        addCountdownEvent({
+          createdAt,
+          durationSeconds,
+          location
+        });
+
+        return {
+          createdAt,
+          durationSeconds,
+          location
+        };
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        unlockAudio();
+        prepareWarningAudio();
+
+        const durationSeconds = parseDuration(durationInput.value);
+        if (!durationSeconds) {
+          errorBox.textContent = "請輸入有效時間，例如 05:00。";
+          durationInput.focus();
+          return;
+        }
+
+        addCountdownEvent({
+          createdAt: Date.now(),
+          durationSeconds
+        });
+
+        errorBox.textContent = "";
+        durationInput.value = "";
+        durationInput.focus();
+      });
+
+      screenshotForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        unlockAudio();
+        prepareWarningAudio();
+
+        const file = screenshotInput.files && screenshotInput.files[0];
+        if (!file) {
+          setScreenshotStatus("請選擇一張遊戲截圖。", true);
+          screenshotInput.focus();
+          return;
+        }
+
+        screenshotButton.disabled = true;
+        screenshotButton.textContent = "辨識中";
+        setScreenshotStatus("辨識中...");
+
+        try {
+          const result = await addEventFromScreenshot(file);
+          screenshotForm.reset();
+          setScreenshotStatus(`已新增截圖事件：${formatClock(result.createdAt)} / ${result.location || "地點空白"}`);
+        } catch (error) {
+          setScreenshotStatus(error.message || "截圖辨識失敗。", true);
+        } finally {
+          screenshotButton.disabled = false;
+          screenshotButton.textContent = "從截圖新增";
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        const deleteButton = event.target.closest("[data-role='deleteEvent']");
+        if (deleteButton) {
+          const row = deleteButton.closest(".row");
+          const targetEvent = events.find((item) => item.id === row.dataset.id);
+          if (!targetEvent || targetEvent.status !== "active") return;
+
+          events = events.filter((item) => item.id !== targetEvent.id);
+          draftLocations.delete(targetEvent.id);
+          saveEvents();
+          render({ force: true });
+          return;
+        }
+
+        const button = event.target.closest("[data-role='saveLocation']");
+        if (!button) return;
+
+        const row = button.closest(".row");
+        const targetEvent = events.find((item) => item.id === row.dataset.id);
+        const locationInput = row.querySelector("[data-role='location']");
+        if (!targetEvent || !locationInput) return;
+
+        targetEvent.location = locationInput.value.trim();
+        targetEvent.savedAt = Date.now();
+        draftLocations.delete(targetEvent.id);
+        saveEvents();
+        render({ force: true });
+      });
+
+      document.addEventListener("input", (event) => {
+        if (!event.target.matches("[data-role='location']")) return;
+
+        const row = event.target.closest(".row");
+        const targetEvent = events.find((item) => item.id === row.dataset.id);
+        if (!targetEvent) return;
+
+        const value = event.target.value;
+        if (value === (targetEvent.location || "")) {
+          draftLocations.delete(targetEvent.id);
+        } else {
+          draftLocations.set(targetEvent.id, value);
+        }
+
+        const savedMark = row.querySelector("[data-role='savedMark']");
+        if (savedMark) savedMark.textContent = "";
+      });
+
+      ["pointerdown", "keydown"].forEach((eventName) => {
+        document.addEventListener(eventName, () => {
+          unlockAudio();
+          prepareWarningAudio();
+          scheduleWarningAlerts();
+        }, { once: true });
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          scheduleWarningAlerts();
+          return;
+        }
+        render({ force: true });
+      });
+
+      window.addEventListener("focus", () => render({ force: true }));
+      window.addEventListener("pageshow", () => render({ force: true }));
+
+      normalizeEvents({ silent: true });
+      notifyThirtySecondWarnings({ silent: true });
+      render({ force: true });
+      setInterval(render, TICK_MS);
+    })();
+  </script>
+</body>
+</html>
